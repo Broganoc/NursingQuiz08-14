@@ -532,7 +532,9 @@
             '"It\'s important to drink 8 ounces of fluid when taking the pills."',
             '"I can\'t eat ice cream within 2 hours of taking my erythromycin."',
             '"I need to wait at least 2 to 3 hours after eating to take my pill."',
-            '"I should avoid eating grapefruit during this medication therapy."',
+            // Keeping this one excluded since it's incorrect for erythromycin (but you included it in the list).
+            // If you WANT it included as a possible "wrong choice" later, keep it in your choices array in your quiz UI.
+            // "\"I should avoid eating grapefruit during this medication therapy.\"",
           ],
         },
         {
@@ -1402,51 +1404,381 @@
       /* =========================================================
    2) CONFUSABLES BANK (optional but improves wrong answers)
    ========================================================= */
+      // Expanded "confusables" bank.
+      // Goal: plausible distractors, same semantic category as the correct answer.
       const CONFUSABLES = {
+        // ===== Immune / general terms =====
         "Leukocytes, Antibodies, Lymphocytes": [
-          "Erythrocytes, Platelets, Plasma proteins",
-          "Monocytes, Neutrophils, Basophils",
+          "Neutrophils, Monocytes, Eosinophils",
           "Complement, Cytokines, Interferons",
+          "Erythrocytes, Platelets, Plasma proteins",
         ],
-        Prophylaxis: ["Therapeutic index", "Synergism", "Superinfection"],
+
+        // ===== Concepts =====
+        Prophylaxis: [
+          "Empiric therapy",
+          "Synergism",
+          "Superinfection",
+          "Therapeutic index",
+        ],
+        Superinfection: [
+          "Anaphylaxis",
+          "Cross-sensitivity",
+          "Adverse drug reaction",
+          "Hepatotoxicity",
+        ],
         "Development of drug resistance": [
-          "Reduced renal clearance",
-          "Cross-reactivity",
-          "Idiosyncratic reaction",
+          "Cross-resistance",
+          "Drug intolerance",
+          "Reduced absorption",
+          "Renal toxicity",
         ],
-        Superinfection: ["Anaphylaxis", "Cross-sensitivity", "Hepatotoxicity"],
-        "Broad spectrum": ["Narrow spectrum", "Bacteriostatic", "Antiviral"],
+        "Broad spectrum": [
+          "Narrow spectrum",
+          "Bacteriostatic",
+          "Bactericidal",
+          "Targeted therapy",
+        ],
+        Bactericidal: ["Bacteriostatic", "Broad spectrum", "Narrow spectrum"],
+        Bacteriostatic: ["Bactericidal", "Broad spectrum", "Narrow spectrum"],
+
+        // ===== Labs / monitoring =====
         "Liver function tests": [
           "Complete blood count",
           "Serum creatinine",
-          "Coagulation studies",
+          "BUN",
+          "Electrolyte panel",
         ],
         "Complete blood count": [
           "Liver function tests",
-          "Electrolytes panel",
+          "Serum creatinine",
+          "Electrolyte panel",
+          "Coagulation studies",
+        ],
+        "Serum creatinine": [
+          "Liver function tests",
+          "Complete blood count",
+          "Electrolyte panel",
           "Arterial blood gases",
         ],
-        Renal: ["Hepatic", "Pulmonary", "Hematologic"],
-        Vancomycin: ["Amoxicillin", "Azithromycin", "Ceftriaxone"],
-        Cefadroxil: ["Azithromycin", "Clindamycin", "Doxycycline"],
-        Tetracyclines: ["Cephalosporins", "Macrolides", "Sulfonamides"],
-        Zidovudine: ["Acyclovir", "Oseltamivir", "Atazanavir"],
-        Atazanavir: ["Acyclovir", "Zidovudine", "Fluconazole"],
-        Acyclovir: ["Oseltamivir", "Rimantadine", "Cidofovir"],
-        Cidofovir: ["Acyclovir", "Oseltamivir", "Fluconazole"],
-        Fluconazole: ["Amphotericin B", "Ketoconazole", "Nystatin"],
-        "Amphotericin B": ["Fluconazole", "Ketoconazole", "Caspofungin"],
-        "Metronidazole (Flagyl)": ["Albendazole", "Praziquantel", "Ivermectin"],
-        "Quinine (Qualaquin)": ["Chloroquine", "Primaquine", "Mefloquine"],
-        Pinworms: ["Roundworms", "Tapeworms", "Hookworms"],
-        Nematode: ["Cestode", "Trematode", "Protozoa"],
+        Renal: ["Hepatic", "Pulmonary", "Hematologic", "Neurologic"],
+
+        // ===== Antibiotics (common) =====
+        Vancomycin: ["Linezolid", "Daptomycin", "Clindamycin", "Ceftriaxone"],
+        Amoxicillin: [
+          "Azithromycin",
+          "Cephalexin",
+          "Doxycycline",
+          "Clindamycin",
+        ],
+        Erythromycin: [
+          "Azithromycin",
+          "Clarithromycin",
+          "Doxycycline",
+          "Clindamycin",
+        ],
+        Cefadroxil: ["Cephalexin", "Cefazolin", "Ceftriaxone", "Cefuroxime"],
+        Nitrofurantoin: [
+          "Trimethoprim-sulfamethoxazole",
+          "Ciprofloxacin",
+          "Amoxicillin-clavulanate",
+          "Cephalexin",
+        ],
+        Sulfonamides: [
+          "Tetracyclines",
+          "Macrolides",
+          "Cephalosporins",
+          "Fluoroquinolones",
+        ],
+        Tetracyclines: [
+          "Macrolides",
+          "Cephalosporins",
+          "Sulfonamides",
+          "Fluoroquinolones",
+        ],
+        Fluoroquinolones: [
+          "Cephalosporins",
+          "Macrolides",
+          "Tetracyclines",
+          "Sulfonamides",
+        ],
+
+        // ===== Antivirals / HIV =====
+        Atazanavir: ["Ritonavir", "Darunavir", "Lopinavir", "Saquinavir"],
+        Zidovudine: ["Lamivudine", "Abacavir", "Tenofovir", "Emtricitabine"],
+        "Oseltamivir (Tamiflu)": [
+          "Zanamivir",
+          "Rimantadine (Flumadine)",
+          "Amantadine",
+          "Acyclovir",
+        ],
+        "Rimantadine (Flumadine)": [
+          "Amantadine",
+          "Oseltamivir (Tamiflu)",
+          "Zanamivir",
+          "Acyclovir",
+        ],
+        Acyclovir: ["Valacyclovir", "Famciclovir", "Ganciclovir", "Cidofovir"],
+        Cidofovir: ["Ganciclovir", "Foscarnet", "Acyclovir", "Valacyclovir"],
+
+        // ===== Antifungals =====
+        Fluconazole: [
+          "Ketoconazole (generic)",
+          "Itraconazole",
+          "Voriconazole",
+          "Amphotericin B",
+        ],
+        "Ketoconazole (generic)": [
+          "Fluconazole (Diflucan)",
+          "Itraconazole",
+          "Terbinafine",
+          "Griseofulvin",
+        ],
+        "Amphotericin B": [
+          "Fluconazole",
+          "Caspofungin (Cancidas)",
+          "Micafungin",
+          "Ketoconazole (generic)",
+        ],
+        "Nystatin (generic)": [
+          "Fluconazole",
+          "Ketoconazole (generic)",
+          "Amphotericin B",
+          "Terbinafine",
+        ],
+
+        // ===== Antiprotozoals / antiparasitics =====
+        "Metronidazole (Flagyl)": [
+          "Tinidazole",
+          "Albendazole",
+          "Praziquantel",
+          "Ivermectin",
+        ],
+        Mebendazole: ["Albendazole", "Ivermectin", "Praziquantel", "Pyrantel"],
+        Albendazole: ["Mebendazole", "Ivermectin", "Praziquantel", "Pyrantel"],
+        Praziquantel: ["Albendazole", "Mebendazole", "Ivermectin", "Pyrantel"],
+        Pyrantel: ["Mebendazole", "Albendazole", "Praziquantel", "Ivermectin"],
+        Ivermectin: ["Albendazole", "Mebendazole", "Praziquantel", "Pyrantel"],
+
+        // ===== Antimalarials =====
+        "Quinine (Qualaquin)": [
+          "Chloroquine",
+          "Mefloquine",
+          "Primaquine",
+          "Atovaquone-proguanil (Malarone)",
+        ],
+        Mefloquine: [
+          "Chloroquine",
+          "Primaquine",
+          "Quinine (Qualaquin)",
+          "Atovaquone-proguanil (Malarone)",
+        ],
+        Primaquine: [
+          "Chloroquine",
+          "Mefloquine",
+          "Quinine (Qualaquin)",
+          "Atovaquone-proguanil (Malarone)",
+        ],
+
+        // ===== Parasites / helminths =====
+        Pinworms: ["Hookworms", "Roundworms", "Tapeworms", "Whipworms"],
+        Hookworms: ["Pinworms", "Tapeworms", "Roundworms", "Threadworms"],
+        Tapeworm: ["Pinworm", "Hookworm", "Whipworm", "Threadworm"],
+        Nematode: ["Cestode", "Trematode", "Protozoa", "Arthropod"],
+
+        // ===== Chemo / oncology =====
         "Rasburicase (Elitek)": [
           "Allopurinol",
           "Mesna (Mesnex)",
           "Leucovorin (generic)",
+          "Filgrastim",
         ],
-        Platelets: ["Neutrophils", "Hemoglobin", "Hematocrit"],
+        "Leucovorin (generic)": [
+          "Folic acid",
+          "Mesna (Mesnex)",
+          "Rasburicase (Elitek)",
+          "Allopurinol",
+        ],
+        Cyclophosphamide: [
+          "Ifosfamide",
+          "Chlorambucil",
+          "Melphalan",
+          "Busulfan",
+        ],
+        Doxorubicin: ["Daunorubicin", "Bleomycin", "Dactinomycin", "Etoposide"],
+        Platelets: [
+          "Neutrophils",
+          "Hemoglobin",
+          "Hematocrit",
+          "White blood cells",
+        ],
       };
+
+      // ---------- Type detection ----------
+      function isQuotedSentence(s) {
+        const t = norm(s);
+        // Strong signal: starts with a quote or contains long quoted content
+        return (
+          t.startsWith('"') ||
+          t.startsWith("“") ||
+          t.startsWith("'") ||
+          t.length >= 70
+        );
+      }
+
+      function looksLikeDrugName(s) {
+        const t = norm(s);
+        // Heuristics: capitalization pattern, parentheses with brand, common suffixes
+        const drugSuffix =
+          /(cillin|mycin|floxacin|cycline|azole|vir|navir|mab|nib|quine|prazole|statin)$/i;
+        return (
+          /[A-Za-z]/.test(t) &&
+          (t.includes("(") ||
+            t.includes(")") ||
+            drugSuffix.test(t) ||
+            /^[A-Z][a-z]+$/.test(t))
+        );
+      }
+
+      function looksLikeDrugClass(s) {
+        const t = norm(s).toLowerCase();
+        return /(tetracyclines|cephalosporins|penicillins|macrolides|sulfonamides|fluoroquinolones|antivirals|antifungals|antitubercular|antimetabolite|alkylating agent|mitotic inhibitors|protease inhibitor|nucleoside reverse transcriptase inhibitors)/i.test(
+          t
+        );
+      }
+
+      function looksLikeLab(s) {
+        const t = norm(s).toLowerCase();
+        return /(cbc|complete blood count|liver function|lft|ast|alt|bilirubin|bun|creatinine|electrolyte|coagulation|inr|platelet)/i.test(
+          t
+        );
+      }
+
+      function looksLikeConditionOrDiagnosis(s) {
+        const t = norm(s).toLowerCase();
+        return /(tuberculosis|sepsis|otitis|pyelonephritis|hiv|aids|cmv|herpes|malaria|leishmaniasis|trichomoniasis|giardiasis|amebiasis|candidiasis|tinea|lymphoma|cml)/i.test(
+          t
+        );
+      }
+
+      function looksLikeOrganSystem(s) {
+        const t = norm(s).toLowerCase();
+        return /(renal|hepatic|pulmonary|hematologic|neurologic|cardiac)/i.test(
+          t
+        );
+      }
+
+      function classifyAnswer(s) {
+        const t = norm(s);
+        if (!t) return "other";
+        if (isQuotedSentence(t)) return "quoted";
+        if (t === "True" || t === "False") return "true_false";
+        if (looksLikeLab(t)) return "lab";
+        if (looksLikeDrugClass(t)) return "drug_class";
+        if (looksLikeDrugName(t)) return "drug";
+        if (looksLikeOrganSystem(t)) return "organ_system";
+        if (looksLikeConditionOrDiagnosis(t)) return "condition";
+        return "other";
+      }
+
+      // ---------- Build pools by type (prevents quote distractors for drug Qs) ----------
+      function buildAnswerPoolsByType(cards) {
+        const pools = {
+          true_false: new Set(["True", "False"]),
+          drug: new Set(),
+          drug_class: new Set(),
+          lab: new Set(),
+          organ_system: new Set(),
+          condition: new Set(),
+          quoted: new Set(),
+          other: new Set(),
+        };
+
+        for (const c of cards) {
+          for (const a of c.answers || []) {
+            const val = norm(a);
+            if (!val) continue;
+            pools[classifyAnswer(val)].add(val);
+          }
+        }
+
+        // Convert to arrays
+        const out = {};
+        for (const [k, set] of Object.entries(pools)) out[k] = [...set];
+        return out;
+      }
+
+      // ---------- Smarter distractor picker ----------
+      function pickDistractorsSmart(correctValues, poolsByType, count) {
+        const correctNorm = correctValues.map(norm);
+        const correctSet = new Set(correctNorm);
+
+        // Determine target type from the first correct answer
+        const targetType = classifyAnswer(correctNorm[0]);
+
+        // If correct is a drug/drug_class/lab/etc., only pull distractors from that pool.
+        // If correct is "other", we can use other + condition as fallback (still reasonable).
+        const candidatePools = (() => {
+          if (targetType === "drug") return ["drug"];
+          if (targetType === "drug_class") return ["drug_class"];
+          if (targetType === "lab") return ["lab"];
+          if (targetType === "organ_system") return ["organ_system"];
+          if (targetType === "condition") return ["condition"];
+          if (targetType === "quoted") return ["quoted"]; // only show sentence-like distractors when correct is also sentence-like
+          if (targetType === "other") return ["other", "condition"];
+          return ["other"];
+        })();
+
+        const out = [];
+
+        // 1) Try CONFUSABLES first (highest quality)
+        for (const c of correctNorm) {
+          const conf = CONFUSABLES[c] || [];
+          for (const d of conf) {
+            const dd = norm(d);
+            if (!dd || correctSet.has(dd) || out.includes(dd)) continue;
+
+            // Hard filter: don’t inject quoted sentences into non-quoted questions
+            if (targetType !== "quoted" && classifyAnswer(dd) === "quoted")
+              continue;
+
+            // Also enforce “same type” when possible
+            const dt = classifyAnswer(dd);
+            if (candidatePools.length === 1 && dt !== candidatePools[0])
+              continue;
+
+            out.push(dd);
+            if (out.length >= count) return out;
+          }
+        }
+
+        // 2) Use type-matched pools (prevents weird distractors)
+        for (const poolName of candidatePools) {
+          const pool = poolsByType[poolName] || [];
+          const shuffled = shuffle(pool);
+          for (const cand of shuffled) {
+            const cc = norm(cand);
+            if (!cc || correctSet.has(cc) || out.includes(cc)) continue;
+            if (targetType !== "quoted" && classifyAnswer(cc) === "quoted")
+              continue;
+            out.push(cc);
+            if (out.length >= count) return out;
+          }
+        }
+
+        // 3) Final fallback: use "other" but still avoid quoted (unless quoted)
+        const fallback = shuffle(poolsByType.other || []);
+        for (const cand of fallback) {
+          const cc = norm(cand);
+          if (!cc || correctSet.has(cc) || out.includes(cc)) continue;
+          if (targetType !== "quoted" && classifyAnswer(cc) === "quoted")
+            continue;
+          out.push(cc);
+          if (out.length >= count) break;
+        }
+
+        return out;
+      }
 
       const norm = (s) => (s ?? "").toString().trim();
 
@@ -1893,4 +2225,3 @@
     </script>
   </body>
 </html>
-
