@@ -1,5 +1,5 @@
 (() => {
-  const LS_KEY = "flashcards_progress_v1";
+  const LS_KEY = "flashcards_progress_v2";
   const LS_THEME = "flashcards_theme_v1";
 
   const $ = (id) => document.getElementById(id);
@@ -13,10 +13,13 @@
     btnReveal: $("btnReveal"),
     answerBox: $("answerBox"),
     answerText: $("answerText"),
+
     btnPrev: $("btnPrev"),
     btnNext: $("btnNext"),
-    btnMarkCorrect: $("btnMarkCorrect"),
-    btnMarkWrong: $("btnMarkWrong"),
+    btnSubmit: $("btnSubmit"),
+
+    resultBar: $("resultBar"),
+
     btnShuffle: $("btnShuffle"),
     btnReset: $("btnReset"),
     modeSelect: $("modeSelect"),
@@ -52,22 +55,18 @@
   }
   function initTheme() {
     const saved = localStorage.getItem(LS_THEME);
-    if (saved === "light" || saved === "dark") {
-      setTheme(saved);
-    } else {
-      setTheme("dark");
-    }
+    if (saved === "light" || saved === "dark") setTheme(saved);
+    else setTheme("dark");
   }
-
   initTheme();
 
   let progress = loadProgress();
   let shuffled = false;
-  let mode = "all";
-
-  // Working deck (after filtering/shuffle)
   let deck = ALL.slice();
   let idx = 0;
+
+  // Per-card attempt state
+  let submitted = false;
 
   function normType(t) {
     if (t === "single" || t === "multiple" || t === "tf") return t;
@@ -75,15 +74,15 @@
   }
 
   function computeStats() {
-    let seen = 0, correct = 0, wrong = 0;
+    let seenCards = 0, correct = 0, wrong = 0;
     for (const c of ALL) {
       const p = progress[c.id];
       if (!p) continue;
-      if (p.seen > 0) seen++;
+      if (p.seen > 0) seenCards++;
       correct += (p.correct || 0);
       wrong += (p.wrong || 0);
     }
-    el.statSeen.textContent = String(seen);
+    el.statSeen.textContent = String(seenCards);
     el.statCorrect.textContent = String(correct);
     el.statWrong.textContent = String(wrong);
   }
@@ -98,7 +97,7 @@
   }
 
   function applyMode() {
-    mode = el.modeSelect.value;
+    const mode = el.modeSelect.value;
 
     const missedOnly = (c) => (progress[c.id]?.wrong || 0) > 0;
     const unseenOnly = (c) => !(progress[c.id]?.seen > 0);
@@ -121,6 +120,7 @@
       el.choices.innerHTML = "";
       el.counter.textContent = "0 / 0";
       el.pillType.textContent = "—";
+      hideResult();
       el.answerBox.classList.add("hidden");
       return;
     }
@@ -136,12 +136,12 @@
     computeStats();
   }
 
-  function mark(cardId, which) {
+  function mark(cardId, isCorrect) {
     const p = progress[cardId] || { seen: 0, correct: 0, wrong: 0, last: 0 };
     p.seen = Math.max(1, p.seen);
     p.last = Date.now();
-    if (which === "correct") p.correct += 1;
-    if (which === "wrong") p.wrong += 1;
+    if (isCorrect) p.correct += 1;
+    else p.wrong += 1;
     progress[cardId] = p;
     saveProgress(progress);
     computeStats();
@@ -155,30 +155,32 @@
     return String(s ?? "");
   }
 
+  function escapeHtml(str) {
+    return safeText(str)
+      .replaceAll("&", "&amp;")
+      .replaceAll("<", "&lt;")
+      .replaceAll(">", "&gt;")
+      .replaceAll('"', "&quot;")
+      .replaceAll("'", "&#039;");
+  }
+
+  function getOptions(card) {
+    const type = normType(card.type);
+    if (type === "tf") {
+      return Array.isArray(card.choices) && card.choices.length ? card.choices : ["True", "False"];
+    }
+    if (type === "multiple") {
+      return Array.isArray(card.choices) && card.choices.length ? card.choices : (card.answers || []);
+    }
+    // single
+    return Array.isArray(card.choices) && card.choices.length ? card.choices : (card.answers || []);
+  }
+
   function renderChoices(card) {
     el.choices.innerHTML = "";
 
     const type = normType(card.type);
-
-    // Determine options shown to user
-    let options = [];
-    if (type === "multiple") {
-      // For multiple, you currently only have correct answers.
-      // UI still works: it will show correct answers as options (no distractors).
-      // If you later add `choices`, it will use them.
-      options = Array.isArray(card.choices) && card.choices.length
-        ? card.choices
-        : (card.answers || []);
-    } else if (type === "tf") {
-      options = Array.isArray(card.choices) && card.choices.length
-        ? card.choices
-        : ["True", "False"];
-    } else {
-      // single
-      options = Array.isArray(card.choices) && card.choices.length
-        ? card.choices
-        : (card.answers || []);
-    }
+    const options = getOptions(card);
 
     const inputType = (type === "multiple") ? "checkbox" : "radio";
     const name = `q_${card.id}`;
@@ -186,6 +188,7 @@
     options.forEach((opt, i) => {
       const row = document.createElement("label");
       row.className = "choice";
+      row.dataset.value = opt;
 
       const input = document.createElement("input");
       input.type = inputType;
@@ -213,18 +216,98 @@
     }
   }
 
-  function escapeHtml(str) {
-    return safeText(str)
-      .replaceAll("&", "&amp;")
-      .replaceAll("<", "&lt;")
-      .replaceAll(">", "&gt;")
-      .replaceAll('"', "&quot;")
-      .replaceAll("'", "&#039;");
+  function setInputsDisabled(disabled) {
+    el.choices.querySelectorAll("input").forEach((inp) => {
+      inp.disabled = disabled;
+    });
+  }
+
+  function getSelectedValues(card) {
+    const name = `q_${card.id}`;
+    const inputs = Array.from(el.choices.querySelectorAll(`input[name="${name}"]`));
+    return inputs.filter(i => i.checked).map(i => i.value);
+  }
+
+  function arrayEqAsSet(a, b) {
+    const A = new Set(a);
+    const B = new Set(b);
+    if (A.size !== B.size) return false;
+    for (const v of A) if (!B.has(v)) return false;
+    return true;
+  }
+
+  function clearChoiceHighlights() {
+    el.choices.querySelectorAll(".choice").forEach((row) => {
+      row.classList.remove("choice--correct", "choice--wrong");
+    });
+  }
+
+  function showResult(isCorrect, message) {
+    el.resultBar.classList.remove("hidden", "result--good", "result--bad");
+    el.resultBar.classList.add(isCorrect ? "result--good" : "result--bad");
+    el.resultBar.textContent = message;
+  }
+
+  function hideResult() {
+    el.resultBar.classList.add("hidden");
+    el.resultBar.classList.remove("result--good", "result--bad");
+    el.resultBar.textContent = "";
+  }
+
+  function grade(card) {
+    const type = normType(card.type);
+    const correctAnswers = Array.isArray(card.answers) ? card.answers : [];
+
+    const selected = getSelectedValues(card);
+
+    // Must select something
+    if (selected.length === 0) {
+      showResult(false, "Select an option before submitting.");
+      return null;
+    }
+
+    let isCorrect = false;
+
+    if (type === "multiple") {
+      isCorrect = arrayEqAsSet(selected, correctAnswers);
+    } else {
+      isCorrect = selected[0] === correctAnswers[0];
+    }
+
+    // Highlight: mark all correct options, and any wrong selections
+    const correctSet = new Set(correctAnswers);
+    el.choices.querySelectorAll(".choice").forEach((row) => {
+      const v = row.dataset.value;
+      const input = row.querySelector("input");
+      const picked = input.checked;
+
+      if (correctSet.has(v)) row.classList.add("choice--correct");
+      if (picked && !correctSet.has(v)) row.classList.add("choice--wrong");
+    });
+
+    // Reveal answer automatically on submit
+    el.answerBox.classList.remove("hidden");
+    el.btnReveal.textContent = "Hide Answer";
+
+    showResult(
+      isCorrect,
+      isCorrect ? "✅ Correct" : "❌ Incorrect"
+    );
+
+    mark(card.id, isCorrect);
+    submitted = true;
+    setInputsDisabled(true);
+    el.btnSubmit.textContent = "Next";
+    return isCorrect;
   }
 
   function render() {
     const card = current();
     if (!card) return;
+
+    submitted = false;
+    hideResult();
+    clearChoiceHighlights();
 
     setSeen(card.id);
 
@@ -236,20 +319,21 @@
 
     el.counter.textContent = `${idx + 1} / ${deck.length}`;
 
-    // Small meta line (seen count)
     const p = progress[card.id] || { seen: 0, correct: 0, wrong: 0 };
     el.metaLine.textContent = `Seen ${p.seen || 0} • ✅ ${p.correct || 0} • ❌ ${p.wrong || 0}`;
 
     el.question.textContent = safeText(card.question);
 
-    // Reset reveal + render UI
+    // Reset reveal
     el.answerBox.classList.add("hidden");
     el.btnReveal.textContent = "Reveal Answer";
 
     renderChoices(card);
     renderAnswer(card);
+    setInputsDisabled(false);
 
-    // Enable/disable nav
+    el.btnSubmit.textContent = "Submit";
+
     el.btnPrev.disabled = idx === 0;
     el.btnNext.disabled = idx === deck.length - 1;
   }
@@ -279,19 +363,16 @@
     }
   });
 
-  // Marking
-  el.btnMarkCorrect.addEventListener("click", () => {
+  // Submit (or Next if already submitted)
+  el.btnSubmit.addEventListener("click", () => {
     const card = current();
     if (!card) return;
-    mark(card.id, "correct");
-    next();
-  });
 
-  el.btnMarkWrong.addEventListener("click", () => {
-    const card = current();
-    if (!card) return;
-    mark(card.id, "wrong");
-    next();
+    if (!submitted) {
+      grade(card);
+    } else {
+      next();
+    }
   });
 
   // Nav buttons
@@ -301,8 +382,7 @@
   // Shuffle
   el.btnShuffle.addEventListener("click", () => {
     shuffled = !shuffled;
-    if (shuffled) deck = shuffleArray(deck);
-    else applyMode(); // rebuild deck in original order for the current mode
+    deck = shuffled ? shuffleArray(deck) : deck.slice().sort((a, b) => a.id - b.id);
     idx = 0;
     render();
     el.btnShuffle.textContent = shuffled ? "🔀✓" : "🔀";
@@ -355,10 +435,11 @@
       const dx = touch.clientX - startX;
       const dy = touch.clientY - startY;
 
-      // Ignore mostly-vertical swipes
       if (Math.abs(dy) > Math.abs(dx)) return;
 
-      // Threshold
+      // only allow swipe nav if not mid-attempt
+      if (submitted) return;
+
       if (dx < -60) next();
       if (dx > 60) prev();
     }, { passive: true });
@@ -366,5 +447,5 @@
 
   // Init
   computeStats();
-  applyMode(); // also renders
+  applyMode();
 })();
