@@ -274,6 +274,37 @@ body {
   margin-top: 2px;
 }
 
+.result {
+  margin-top: 10px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 10px 12px;
+  font-weight: 800;
+  font-size: 14px;
+}
+
+.result--good {
+  background: rgba(45,212,191,0.14);
+  border-color: rgba(45,212,191,0.35);
+}
+
+.result--bad {
+  background: rgba(251,113,133,0.14);
+  border-color: rgba(251,113,133,0.35);
+}
+
+/* Choice highlighting after submit */
+.choice--correct {
+  outline: 2px solid rgba(45,212,191,0.55);
+  background: rgba(45,212,191,0.08);
+}
+
+.choice--wrong {
+  outline: 2px solid rgba(251,113,133,0.55);
+  background: rgba(251,113,133,0.08);
+}
+
+
 .hidden { display: none; }
 
 .footer {
