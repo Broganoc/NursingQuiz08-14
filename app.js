@@ -307,7 +307,7 @@
     el.answerBox.classList.remove("hidden");
     el.btnReveal.textContent = "Hide Answer";
 
-    showResult(isCorrect, isCorrect ? "✅ Correct" : "❌ Incorrect");
+    showResult(isCorrect, isCorrect ? "Correct" : "Incorrect");
 
     mark(card.id, isCorrect);
     submitted = true;
@@ -337,7 +337,7 @@
     el.counter.textContent = `${idx + 1} / ${deck.length}`;
 
     const p = progress[card.id] || { seen: 0, correct: 0, wrong: 0 };
-    el.metaLine.textContent = `Seen ${p.seen || 0} • ✅ ${p.correct || 0} • ❌ ${
+    el.metaLine.textContent = `Seen ${p.seen || 0} • ${p.correct || 0} • ${
       p.wrong || 0
     }`;
 
