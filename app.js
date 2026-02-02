@@ -61,7 +61,9 @@
   initTheme();
 
   let progress = loadProgress();
-  let shuffled = false;
+
+  // Start shuffled every load
+  let shuffled = true;
   let deck = ALL.slice();
   let idx = 0;
 
@@ -96,6 +98,49 @@
     return arr;
   }
 
+  function safeText(s) {
+    return String(s ?? "");
+  }
+
+  function escapeHtml(str) {
+    return safeText(str)
+      .replaceAll("&", "&amp;")
+      .replaceAll("<", "&lt;")
+      .replaceAll(">", "&gt;")
+      .replaceAll('"', "&quot;")
+      .replaceAll("'", "&#039;");
+  }
+
+  // Shuffles choices so the correct option isn't always first
+  function shuffledCopy(arr) {
+    const a = arr.slice();
+    for (let i = a.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [a[i], a[j]] = [a[j], a[i]];
+    }
+    return a;
+  }
+
+  // Options source:
+  // - TF: keep stable True/False order (change to shuffledCopy(["True","False"]) if you want random)
+  // - Single/Multiple: use card.choices if present else card.answers; then shuffle for display
+  function getOptions(card) {
+    const type = normType(card.type);
+
+    if (type === "tf") {
+      return Array.isArray(card.choices) && card.choices.length
+        ? card.choices
+        : ["True", "False"];
+    }
+
+    const base =
+      Array.isArray(card.choices) && card.choices.length
+        ? card.choices
+        : (card.answers || []);
+
+    return shuffledCopy(base);
+  }
+
   function applyMode() {
     const mode = el.modeSelect.value;
 
@@ -115,6 +160,7 @@
 
     if (shuffled) deck = shuffleArray(deck);
     idx = Math.min(idx, Math.max(0, deck.length - 1));
+
     if (deck.length === 0) {
       el.question.textContent = "No cards match this filter.";
       el.choices.innerHTML = "";
@@ -151,56 +197,13 @@
     return deck[idx];
   }
 
-  function safeText(s) {
-    return String(s ?? "");
-  }
-
-  function escapeHtml(str) {
-    return safeText(str)
-      .replaceAll("&", "&amp;")
-      .replaceAll("<", "&lt;")
-      .replaceAll(">", "&gt;")
-      .replaceAll('"', "&quot;")
-      .replaceAll("'", "&#039;");
-  }
-
-  function shuffledCopy(arr) {
-  const a = arr.slice();
-  for (let i = a.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [a[i], a[j]] = [a[j], a[i]];
-  }
-  return a;
-}
-
-function getOptions(card) {
-  const type = normType(card.type);
-
-  // Keep T/F stable (optional—see note below)
-  if (type === "tf") {
-    return Array.isArray(card.choices) && card.choices.length
-      ? card.choices
-      : ["True", "False"];
-  }
-
-  // Single + Multiple: use choices if present, else answers
-  const base =
-    Array.isArray(card.choices) && card.choices.length
-      ? card.choices
-      : (card.answers || []);
-
-  // Shuffle so correct isn't always option A
-  return shuffledCopy(base);
-}
-
-
   function renderChoices(card) {
     el.choices.innerHTML = "";
 
     const type = normType(card.type);
     const options = getOptions(card);
 
-    const inputType = (type === "multiple") ? "checkbox" : "radio";
+    const inputType = type === "multiple" ? "checkbox" : "radio";
     const name = `q_${card.id}`;
 
     options.forEach((opt, i) => {
@@ -228,7 +231,7 @@ function getOptions(card) {
     const type = normType(card.type);
     const ans = Array.isArray(card.answers) ? card.answers : [];
     if (type === "multiple") {
-      el.answerText.innerHTML = ans.map(a => `• ${escapeHtml(a)}`).join("<br/>");
+      el.answerText.innerHTML = ans.map((a) => `• ${escapeHtml(a)}`).join("<br/>");
     } else {
       el.answerText.textContent = ans[0] ? safeText(ans[0]) : "—";
     }
@@ -243,7 +246,7 @@ function getOptions(card) {
   function getSelectedValues(card) {
     const name = `q_${card.id}`;
     const inputs = Array.from(el.choices.querySelectorAll(`input[name="${name}"]`));
-    return inputs.filter(i => i.checked).map(i => i.value);
+    return inputs.filter((i) => i.checked).map((i) => i.value);
   }
 
   function arrayEqAsSet(a, b) {
@@ -275,24 +278,21 @@ function getOptions(card) {
   function grade(card) {
     const type = normType(card.type);
     const correctAnswers = Array.isArray(card.answers) ? card.answers : [];
-
     const selected = getSelectedValues(card);
 
-    // Must select something
     if (selected.length === 0) {
       showResult(false, "Select an option before submitting.");
       return null;
     }
 
     let isCorrect = false;
-
     if (type === "multiple") {
       isCorrect = arrayEqAsSet(selected, correctAnswers);
     } else {
       isCorrect = selected[0] === correctAnswers[0];
     }
 
-    // Highlight: mark all correct options, and any wrong selections
+    // Highlight correct options + wrong selections
     const correctSet = new Set(correctAnswers);
     el.choices.querySelectorAll(".choice").forEach((row) => {
       const v = row.dataset.value;
@@ -307,10 +307,7 @@ function getOptions(card) {
     el.answerBox.classList.remove("hidden");
     el.btnReveal.textContent = "Hide Answer";
 
-    showResult(
-      isCorrect,
-      isCorrect ? "✅ Correct" : "❌ Incorrect"
-    );
+    showResult(isCorrect, isCorrect ? "✅ Correct" : "❌ Incorrect");
 
     mark(card.id, isCorrect);
     submitted = true;
@@ -331,14 +328,18 @@ function getOptions(card) {
 
     const type = normType(card.type);
     el.pillType.textContent =
-      type === "single" ? "Single Answer" :
-      type === "multiple" ? "Select All That Apply" :
-      "True / False";
+      type === "single"
+        ? "Single Answer"
+        : type === "multiple"
+        ? "Select All That Apply"
+        : "True / False";
 
     el.counter.textContent = `${idx + 1} / ${deck.length}`;
 
     const p = progress[card.id] || { seen: 0, correct: 0, wrong: 0 };
-    el.metaLine.textContent = `Seen ${p.seen || 0} • ✅ ${p.correct || 0} • ❌ ${p.wrong || 0}`;
+    el.metaLine.textContent = `Seen ${p.seen || 0} • ✅ ${p.correct || 0} • ❌ ${
+      p.wrong || 0
+    }`;
 
     el.question.textContent = safeText(card.question);
 
@@ -362,6 +363,7 @@ function getOptions(card) {
       render();
     }
   }
+
   function prev() {
     if (idx > 0) {
       idx -= 1;
@@ -397,7 +399,7 @@ function getOptions(card) {
   el.btnNext.addEventListener("click", next);
   el.btnPrev.addEventListener("click", prev);
 
-  // Shuffle
+  // Shuffle toggle
   el.btnShuffle.addEventListener("click", () => {
     shuffled = !shuffled;
     deck = shuffled ? shuffleArray(deck) : deck.slice().sort((a, b) => a.id - b.id);
@@ -437,33 +439,44 @@ function getOptions(card) {
     let startY = 0;
     let tracking = false;
 
-    el.card.addEventListener("touchstart", (e) => {
-      if (!e.touches || e.touches.length !== 1) return;
-      tracking = true;
-      startX = e.touches[0].clientX;
-      startY = e.touches[0].clientY;
-    }, { passive: true });
+    el.card.addEventListener(
+      "touchstart",
+      (e) => {
+        if (!e.touches || e.touches.length !== 1) return;
+        tracking = true;
+        startX = e.touches[0].clientX;
+        startY = e.touches[0].clientY;
+      },
+      { passive: true }
+    );
 
-    el.card.addEventListener("touchend", (e) => {
-      if (!tracking) return;
-      tracking = false;
-      const touch = e.changedTouches && e.changedTouches[0];
-      if (!touch) return;
+    el.card.addEventListener(
+      "touchend",
+      (e) => {
+        if (!tracking) return;
+        tracking = false;
+        const touch = e.changedTouches && e.changedTouches[0];
+        if (!touch) return;
 
-      const dx = touch.clientX - startX;
-      const dy = touch.clientY - startY;
+        const dx = touch.clientX - startX;
+        const dy = touch.clientY - startY;
 
-      if (Math.abs(dy) > Math.abs(dx)) return;
+        if (Math.abs(dy) > Math.abs(dx)) return;
 
-      // only allow swipe nav if not mid-attempt
-      if (submitted) return;
+        // only allow swipe nav if not mid-attempt
+        if (submitted) return;
 
-      if (dx < -60) next();
-      if (dx > 60) prev();
-    }, { passive: true });
+        if (dx < -60) next();
+        if (dx > 60) prev();
+      },
+      { passive: true }
+    );
   })();
 
-  // Init
+  // Init: start with shuffled deck + button state
+  deck = shuffleArray(deck);
+  el.btnShuffle.textContent = "🔀✓";
+
   computeStats();
   applyMode();
 })();
