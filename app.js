@@ -164,17 +164,35 @@
       .replaceAll("'", "&#039;");
   }
 
-  function getOptions(card) {
-    const type = normType(card.type);
-    if (type === "tf") {
-      return Array.isArray(card.choices) && card.choices.length ? card.choices : ["True", "False"];
-    }
-    if (type === "multiple") {
-      return Array.isArray(card.choices) && card.choices.length ? card.choices : (card.answers || []);
-    }
-    // single
-    return Array.isArray(card.choices) && card.choices.length ? card.choices : (card.answers || []);
+  function shuffledCopy(arr) {
+  const a = arr.slice();
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
   }
+  return a;
+}
+
+function getOptions(card) {
+  const type = normType(card.type);
+
+  // Keep T/F stable (optional—see note below)
+  if (type === "tf") {
+    return Array.isArray(card.choices) && card.choices.length
+      ? card.choices
+      : ["True", "False"];
+  }
+
+  // Single + Multiple: use choices if present, else answers
+  const base =
+    Array.isArray(card.choices) && card.choices.length
+      ? card.choices
+      : (card.answers || []);
+
+  // Shuffle so correct isn't always option A
+  return shuffledCopy(base);
+}
+
 
   function renderChoices(card) {
     el.choices.innerHTML = "";
